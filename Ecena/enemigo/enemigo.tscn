@@ -1,0 +1,332 @@
+[gd_scene format=3 uid="uid://dkw24wujf7ack"]
+
+[ext_resource type="Texture2D" uid="uid://du0qnpsro5p2k" path="res://Ecena/enemigo/atacar.png" id="1_rft6a"]
+[ext_resource type="Texture2D" uid="uid://cbacvu3675jhy" path="res://Ecena/enemigo/caminar.png" id="2_hw7s3"]
+[ext_resource type="Texture2D" uid="uid://dorllfknp20y" path="res://Ecena/enemigo/correr.png" id="3_hw7s3"]
+[ext_resource type="Texture2D" uid="uid://dwyn00cmed8x8" path="res://Ecena/enemigo/salto.png" id="3_trad3"]
+
+[sub_resource type="GDScript" id="GDScript_2mv2k"]
+script/source = "extends CharacterBody2D
+
+var _velocidad: float = 200.0
+var _velocidad_exploracion: float = 80.0 # Va más lento cuando no ve al jugador
+@warning_ignore(\"unused_private_class_variable\")
+var _velocidad_salto: float = -300.0
+var personaje
+var rango_vision: float = 300.0 
+
+var atacando: bool = false
+var jugador_en_rango: bool = false # Para saber si esta cerca cuando la espada golpee
+
+# --- Variables nuevas para la Exploración ---
+var direccion_exploracion: int = 0
+var tiempo_exploracion: float = 0.0
+
+@onready var animacion = $animacion
+@onready var vision = $RayCast2D 
+
+func _physics_process(delta):
+	
+	# 1. Buscar al jugador en el mapa si aún no lo tenemos
+	if personaje == null:
+		personaje = get_tree().current_scene.find_child(\"personaje\")
+		
+	# 2. Aplicar gravedad básica
+	velocity += get_gravity() * delta
+	
+	# 3. Inteligencia Artificial y Visión
+	if is_instance_valid(personaje) and not atacando:
+		var distancia = global_position.distance_to(personaje.global_position)
+		var puede_verlo = false
+		
+		# Si el jugador está dentro de su rango, activa el láser de visión
+		if distancia <= rango_vision:
+			
+			# Apunta al pecho del jugador (restando 20 en Y) para no raspar el suelo
+			vision.target_position = to_local(personaje.global_position + Vector2(0, -20))
+			
+			# Obliga al láser a actualizarse de inmediato
+			vision.force_raycast_update()
+			
+			if vision.is_colliding():
+				var objeto_visto = vision.get_collider()
+				# Si lo primero que toca el láser es el personaje, significa que la vía está libre
+				if objeto_visto != null and objeto_visto.name == \"personaje\":
+					puede_verlo = true
+		
+		# --- COMPORTAMIENTO SEGÚN LO QUE VE ---
+		if puede_verlo:
+			# PERSEGUIR
+			var direction = (personaje.global_position - global_position).normalized()
+			velocity.x = direction.x * _velocidad
+			
+			# Voltear el dibujo horizontalmente según hacia dónde corre
+			if direction.x > 0:
+				animacion.flip_h = false # Mira a la derecha
+			elif direction.x < 0:
+				animacion.flip_h = true  # Mira a la izquierda
+				
+		else:
+			# EXPLORAR / PATRULLAR
+			# Restamos el tiempo en cada fotograma
+			tiempo_exploracion -= delta
+			
+			# Si el tiempo se acaba, elegimos qué hacer a continuación
+			if tiempo_exploracion <= 0:
+				# randi_range(-1, 1) nos da -1 (izquierda), 0 (quieto), o 1 (derecha)
+				direccion_exploracion = randi_range(-1, 1)
+				# Decidimos cuánto tiempo hará esta acción (entre 1 y 3 segundos)
+				tiempo_exploracion = randf_range(1.0, 3.0)
+				
+			# Aplicamos la velocidad de exploración (más lenta que la de persecución)
+			velocity.x = direccion_exploracion * _velocidad_exploracion
+			
+			# Voltear el dibujo horizontalmente mientras patrulla
+			if direccion_exploracion > 0:
+				animacion.flip_h = false # Mira a la derecha
+			elif direccion_exploracion < 0:
+				animacion.flip_h = true  # Mira a la izquierda
+
+	else:
+		# Si está ejecutando el ataque, se frena en seco para dar el golpe
+		velocity.x = move_toward(velocity.x, 0, _velocidad)
+
+	# 4. Mover al enemigo físicamente
+	move_and_slide()
+	
+	# 5. Control de animaciones (Mejorado)
+	if atacando:
+		if animacion.animation != \"atacar\":
+			animacion.play(\"atacar\")
+	else:
+		# Comprobamos si se está moviendo usando abs() (que convierte negativos en positivos)
+		if abs(velocity.x) > 0:
+			# Si va muy rápido, usa la animación de correr, sino, la de caminar
+			if abs(velocity.x) > _velocidad_exploracion:
+				animacion.play(\"correr\")
+			else:
+				animacion.play(\"caminar\") 
+		else:
+			animacion.play(\"idle\")
+
+
+
+# --- SEÑALES DE LA ZONA DE DAÑO (Tu Area2D llamada ZonaDaño) ---
+
+func _on_zona_daño_body_entered(body):
+	if body.name == \"personaje\":
+		jugador_en_rango = true
+		atacando = true 
+		
+
+func _on_zona_daño_body_exited(body):
+	if body.name == \"personaje\":
+		jugador_en_rango = false
+
+
+# --- SEÑALES DEL NODO DE ANIMACIÓN 
+
+func _on_animacion_frame_changed():
+	if animacion.animation == \"atacar\":
+		# Comprueba si va por el fotograma del espadazo 
+		if animacion.frame == 2:
+			# Solo si el jugador sigue dentro del rango de golpe, se aplica el daño
+			if jugador_en_rango == true:
+				personaje.recibir_daño(15.0, global_position.x)
+
+
+func _on_animacion_animation_finished():
+	if animacion.animation == \"atacar\":
+		# Cuando termina por completo la animación de ataque, vuelve a caminar
+		atacando = false
+"
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jshqv"]
+atlas = ExtResource("1_rft6a")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o5t6b"]
+atlas = ExtResource("1_rft6a")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xolsd"]
+atlas = ExtResource("1_rft6a")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7lugh"]
+atlas = ExtResource("1_rft6a")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_trad3"]
+atlas = ExtResource("2_hw7s3")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2mv2k"]
+atlas = ExtResource("2_hw7s3")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wjyk7"]
+atlas = ExtResource("2_hw7s3")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1sdwo"]
+atlas = ExtResource("2_hw7s3")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r3hml"]
+atlas = ExtResource("3_hw7s3")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a65dm"]
+atlas = ExtResource("3_hw7s3")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0cqs1"]
+atlas = ExtResource("3_hw7s3")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_236ty"]
+atlas = ExtResource("3_hw7s3")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rft6a"]
+atlas = ExtResource("2_hw7s3")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rh57t"]
+atlas = ExtResource("3_trad3")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j8qfx"]
+atlas = ExtResource("3_trad3")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h0262"]
+atlas = ExtResource("3_trad3")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jv8gi"]
+atlas = ExtResource("3_trad3")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gr06g"]
+atlas = ExtResource("3_trad3")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_0cqs1"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jshqv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o5t6b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xolsd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7lugh")
+}],
+"loop": false,
+"name": &"atacar",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_trad3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2mv2k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wjyk7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1sdwo")
+}],
+"loop": true,
+"name": &"caminar",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r3hml")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a65dm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0cqs1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_236ty")
+}],
+"loop": true,
+"name": &"correr",
+"speed": 7.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rft6a")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rh57t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j8qfx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h0262")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jv8gi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gr06g")
+}],
+"loop": true,
+"name": &"salto",
+"speed": 10.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rft6a"]
+size = Vector2(28, 37.5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hw7s3"]
+size = Vector2(33, 42)
+
+[node name="enemigo" type="CharacterBody2D" unique_id=154293742]
+collision_layer = 2
+collision_mask = 5
+script = SubResource("GDScript_2mv2k")
+
+[node name="animacion" type="AnimatedSprite2D" parent="." unique_id=332000774]
+position = Vector2(34.75, 23.999996)
+scale = Vector2(2.140625, 2.0624998)
+sprite_frames = SubResource("SpriteFrames_0cqs1")
+animation = &"idle"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=461600819]
+position = Vector2(38, 30.25)
+shape = SubResource("RectangleShape2D_rft6a")
+
+[node name="zona_daño" type="Area2D" parent="CollisionShape2D" unique_id=858198432]
+collision_layer = 0
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="CollisionShape2D/zona_daño" unique_id=917989188]
+position = Vector2(0, -0.25)
+shape = SubResource("RectangleShape2D_hw7s3")
+
+[node name="RayCast2D" type="RayCast2D" parent="." unique_id=1796077262]
+position = Vector2(0, 10)
+
+[connection signal="animation_finished" from="animacion" to="." method="_on_animacion_animation_finished"]
+[connection signal="frame_changed" from="animacion" to="." method="_on_animacion_frame_changed"]
+[connection signal="body_entered" from="CollisionShape2D/zona_daño" to="." method="_on_zona_daño_body_entered"]
+[connection signal="body_exited" from="CollisionShape2D/zona_daño" to="." method="_on_zona_daño_body_exited"]

@@ -1,0 +1,101 @@
+[gd_scene format=3 uid="uid://ctowu5w6f4065"]
+
+[ext_resource type="Texture2D" uid="uid://tgpwej5u1gbq" path="res://Ecena/personaje_1/plantilla de correr1.png" id="1_qp52p"]
+[ext_resource type="Texture2D" uid="uid://kx6xoobe0xmj" path="res://Ecena/personaje_1/plantilla de correr2.png" id="2_6ct3r"]
+[ext_resource type="Texture2D" uid="uid://dmidf87bktx1e" path="res://Ecena/personaje_1/plantilla de correr3.png" id="3_1kp85"]
+[ext_resource type="Texture2D" uid="uid://degmjvp4qjh60" path="res://Ecena/personaje_1/plantilla de correr4.png" id="4_qnedo"]
+[ext_resource type="Texture2D" uid="uid://cwjd0aue0dllr" path="res://Ecena/personaje_1/plantilla de correr5.png" id="5_wyqjk"]
+[ext_resource type="Texture2D" uid="uid://chwq600hrnakx" path="res://Ecena/personaje_1/plantilla de correr7.png" id="6_k85er"]
+[ext_resource type="Texture2D" uid="uid://m8plgy2baks8" path="res://Ecena/personaje_1/plantilla de correr6.png" id="7_ebjds"]
+[ext_resource type="Texture2D" uid="uid://biiy8hr0cy0o3" path="res://Ecena/personaje_1/plantilla de correr8.png" id="8_y1dt5"]
+
+[sub_resource type="GDScript" id="GDScript_au0nh"]
+script/source = "extends CharacterBody2D
+
+@onready var animacion = $animacion
+@export var area_2d: Area2D
+
+var _velocidad: float= 100.0
+var _velocidad_salto: float= -300.0
+
+func _ready():
+	area_2d.body_entered.connect(_on_area_2d_body_entered) 
+	
+func _physics_process(delta):
+	
+
+	# gravedad
+	velocity+= get_gravity() * delta
+	
+	#salto
+	if Input.is_action_just_pressed(\"saltar\") and is_on_floor():
+		#is_on_floor devuelve true si el personaje toca el suelo y 
+		#false sino lo esta
+		velocity.y= _velocidad_salto
+	
+
+	# movimiento lateral
+	if Input.is_action_pressed(\"derecha\"):
+		animacion.flip_h= true #flip_h es para invertir el sprite
+		velocity.x= _velocidad
+		
+	elif Input.is_action_pressed(\"izquierda\"):
+		velocity.x= -_velocidad
+		animacion.flip_h= false 
+
+	else:
+		velocity.x=0
+	move_and_slide()
+	
+
+#animacion
+
+	if !is_on_floor():
+		animacion.play(\"saltar\")
+	elif velocity.x !=0:
+		animacion.play(\"correr\")
+	else:
+		animacion.play(\"idle\")
+"
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_76bt2"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_qp52p")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_6ct3r")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_1kp85")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_qnedo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_wyqjk")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_k85er")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_ebjds")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_y1dt5")
+}],
+"loop": true,
+"name": &"default",
+"speed": 12.0
+}]
+
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=983830708]
+script = SubResource("GDScript_au0nh")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=328192549]
+position = Vector2(22, 34)
+scale = Vector2(1.34375, 1.53125)
+sprite_frames = SubResource("SpriteFrames_76bt2")
+frame = 6
+frame_progress = 0.9088324

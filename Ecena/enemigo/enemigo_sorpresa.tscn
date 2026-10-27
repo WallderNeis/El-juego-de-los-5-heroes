@@ -1,0 +1,99 @@
+[gd_scene format=3 uid="uid://cmpyytfq50wx3"]
+
+[ext_resource type="Texture2D" uid="uid://dn1hmdfql0qw5" path="res://icon.svg" id="1_xvy22"]
+
+[sub_resource type="GDScript" id="GDScript_xvy22"]
+script/source = "extends Area2D
+
+@onready var enemigo = $\"../enemigosorpresa\"
+
+
+
+func _on_body_entered(body: Node2D) -> void:
+	
+	if body.is_in_group(\"jugador\"):
+		enemigo.saltar()
+	
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tg0u3"]
+size = Vector2(89.8125, 475.0625)
+
+[sub_resource type="GDScript" id="GDScript_fu1om"]
+script/source = "extends Area2D
+
+var activado = false
+var regresando = false
+var velocidad_subida = 400 
+var altura_maxima = 300 
+var posicion_inicial: Vector2
+
+func _ready():
+	
+	posicion_inicial = position
+
+func _process(delta):
+	if activado:
+	
+		position.y -= velocidad_subida * delta
+		
+		
+		if position.y <= posicion_inicial.y - altura_maxima:
+			activado = false
+			esperar_y_bajar()
+			
+	elif regresando:
+		
+		position.y += velocidad_subida * delta
+		
+	
+		if position.y >= posicion_inicial.y:
+			position = posicion_inicial
+			regresando = false
+
+
+func esperar_y_bajar():
+
+	await get_tree().create_timer(0.5).timeout
+	regresando = true
+	
+func saltar():
+	if not activado and not regresando:
+		activado = true
+
+
+func _on_body_entered(body: Node2D) -> void:
+	
+	if body.name == \"personaje\":
+		body.recibir_daño(15.0, global_position.x)
+		
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3555g"]
+size = Vector2(61.62509, 25.19646)
+
+[node name="TrampaHueco" type="Node2D" unique_id=1114512114]
+
+[node name="DetectorHueco" type="Area2D" parent="." unique_id=996895522]
+script = SubResource("GDScript_xvy22")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectorHueco" unique_id=494961764]
+position = Vector2(328, 260)
+shape = SubResource("RectangleShape2D_tg0u3")
+
+[node name="enemigosorpresa" type="Area2D" parent="." unique_id=1425848766]
+position = Vector2(407.25, 506.75)
+script = SubResource("GDScript_fu1om")
+
+[node name="Sprite2D" type="Sprite2D" parent="enemigosorpresa" unique_id=285738017]
+position = Vector2(-80.37501, 47.250004)
+scale = Vector2(0.32617164, 0.20312512)
+texture = ExtResource("1_xvy22")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="enemigosorpresa" unique_id=808033128]
+position = Vector2(-79.25, 46.25)
+scale = Vector2(0.99999976, 0.7968748)
+shape = SubResource("RectangleShape2D_3555g")
+
+[connection signal="body_exited" from="DetectorHueco" to="DetectorHueco" method="_on_body_exited"]
+[connection signal="body_entered" from="enemigosorpresa" to="enemigosorpresa" method="_on_body_entered"]

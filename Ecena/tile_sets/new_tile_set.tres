@@ -1,0 +1,79 @@
+[gd_resource type="TileSet" format=3 uid="uid://d22ye78xbm4bb"]
+
+[ext_resource type="Texture2D" uid="uid://cit7iybbtfbuo" path="res://Ecena/nivel_1/hongos.png" id="1_fjdq6"]
+[ext_resource type="Texture2D" uid="uid://ccexjoxw27a6y" path="res://Ecena/tile_sets/agua.png" id="1_hhk5h"]
+[ext_resource type="Texture2D" uid="uid://eu6lhhjb6o4u" path="res://Ecena/tile_sets/tilesets 3.png" id="2_hu2cw"]
+[ext_resource type="Texture2D" uid="uid://pes1f8jrd1xo" path="res://Ecena/tile_sets/tilesets 4.png" id="3_hhk5h"]
+[ext_resource type="Texture2D" uid="uid://4yw27j6mmxnl" path="res://Ecena/tile_sets/bloque para gansho.png" id="4_fjdq6"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_jkl1d"]
+texture = ExtResource("1_fjdq6")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_fjdq6"]
+texture = ExtResource("1_hhk5h")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -5.166667, 16, -5.166667, 16, 15.5, -16, 15.5)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_hhk5h"]
+texture = ExtResource("2_hu2cw")
+texture_region_size = Vector2i(32, 32)
+2:0/0 = 0
+2:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+0:1/0 = 0
+0:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+1:1/0 = 0
+1:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+2:1/0 = 0
+2:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+0:2/0 = 0
+0:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, -16, 16, 16, 16, 16, -16)
+1:2/0 = 0
+1:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+2:2/0 = 0
+2:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(16, -16, -16, -16, -16, 16, 16, 16)
+1:0/0 = 0
+1:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, 16, 16, 16, 16, -16, -16, -16)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_nhkpn"]
+texture = ExtResource("4_fjdq6")
+texture_region_size = Vector2i(32, 31)
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -15.5, 16, -15.5, 16, 15.5, -16, 15.5)
+0:0/0/custom_data_0 = true
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_s3uh1"]
+texture = ExtResource("3_hhk5h")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+1:0/0 = 0
+1:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+2:0/0 = 0
+2:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, -16, 16, 16, 16, 16, -16)
+0:1/0 = 0
+0:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+2:1/0 = 0
+2:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, -16, 16, 16, 16, 16, -16)
+0:2/0 = 0
+0:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+1:2/0 = 0
+1:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+2:2/0 = 0
+2:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+
+[resource]
+tile_size = Vector2i(32, 31)
+physics_layer_0/collision_layer = 33
+physics_layer_0/collision_mask = 0
+custom_data_layer_0/name = "es_gancho"
+custom_data_layer_0/type = 1
+sources/4 = SubResource("TileSetAtlasSource_s3uh1")
+sources/2 = SubResource("TileSetAtlasSource_hhk5h")
+sources/1 = SubResource("TileSetAtlasSource_fjdq6")
+sources/0 = SubResource("TileSetAtlasSource_jkl1d")
+sources/3 = SubResource("TileSetAtlasSource_nhkpn")

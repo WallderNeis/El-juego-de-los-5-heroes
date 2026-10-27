@@ -1,0 +1,371 @@
+[gd_scene format=3 uid="uid://t20nbk7tj3p5"]
+
+[ext_resource type="SpriteFrames" uid="uid://nih0wf5dn8j7" path="res://Ecena/personaje_1/new_sprite_frames.tres" id="1_oc47h"]
+[ext_resource type="Texture2D" uid="uid://dx27phwkbmsdr" path="res://Ecena/gancho/Cadena.png" id="2_xvnmu"]
+[ext_resource type="Texture2D" uid="uid://2bncruhas42d" path="res://Ecena/gancho/gancho.png" id="3_ma4sg"]
+
+[sub_resource type="GDScript" id="GDScript_oc47h"]
+script/source = "extends CharacterBody2D
+
+# Configuración de nodos
+@onready var animacion = $animacion
+@onready var raycast_agarrarse = $RayCast2D
+@onready var cuerda_gancho: Line2D = $CuerdaGancho
+@onready var punta_gancho: Sprite2D = $PuntaGancho
+@export var area_2d: Area2D
+@export var mapa_tiles: TileMapLayer
+@export var barra_salud: ProgressBar
+
+# Movimiento terrestre
+var _velocidad_caminar: float = 320.0
+var _velocidad_correr: float = 500.0
+var _velocidad_salto: float = -400.0
+var esta_corriendo: bool = false
+var tiempo_doble_toque: float = 0.0
+var ultima_direccion: int = 0
+var cooldown_correr: float = 0.0
+var jump_count = 0
+const TIEMPO_MAX_DOBLE_TOQUE: float = 0.25
+const TIEMPO_COOLDOWN_CORRER: float = 5.0
+const VELOCIDAD_TREPADO_MAXIMA = 0.0
+const max_jumps = 2
+
+# Dash e invulnerabilidad
+var velocida_dash: float = 400.0
+var tiempo_dash: float = 0.2
+var direccion_dash: float = 0.0
+var es_invulnerable: bool = false
+var tiempo_invulnerable: float = 0.5
+var segmentos_actuales: float = 5.0
+var segmentos_maximos: float = 5.0
+var costo_por_dash: float = 1.0
+
+# Salud y daño
+var salud_actual: float = 100.0
+var salud_maxima: float = 100.0
+var esta_herido: bool = false
+
+# Ataque y combo
+var esta_atacando: bool = false
+var tiempo_ataque: float = 0.0
+var frame_ataque: int = 0
+var tiempo_combo: float = 0.0
+var ataque_base = 5.0
+var daño_actual = ataque_base
+
+# Gancho
+var usando_gancho: bool = false
+var punto_gancho: Vector2 = Vector2.ZERO
+const RANGO_MAX_GANCHO: float = 280.0
+const VELOCIDAD_GANCHO: float = 750.0
+const DISTANCIA_FRENO_GANCHO: float = 180.0
+
+
+# Inicialización
+func _ready():
+	if area_2d:
+		area_2d.body_entered.connect(_on_area_2d_body_entered)
+	cuerda_gancho.visible = false
+	punta_gancho.visible = false
+	punta_gancho.z_index = 1
+	cuerda_gancho.z_index = 0
+
+# Físicas y movimiento
+func _physics_process(delta):
+	if Input.is_action_just_pressed(\"gancho\") and not esta_herido:
+		if usando_gancho:
+			soltar_gancho()
+		else:
+			lanzar_gancho_automatico()
+
+	if usando_gancho:
+		procesar_gancho(delta)
+		return
+
+	procesar_doble_toque(delta)
+	procesar_gravedad(delta)
+	procesar_salto()
+	procesar_caminar()
+	move_and_slide()
+	procesar_animaciones()
+
+func procesar_gancho(delta):
+	if esta_herido:
+		soltar_gancho()
+		return
+		
+	var distancia = global_position.distance_to(punto_gancho)
+	var dir_al_bloque = global_position.direction_to(punto_gancho)
+	
+	cuerda_gancho.points = [Vector2.ZERO, to_local(punto_gancho)]
+	punta_gancho.global_position = punto_gancho
+	punta_gancho.rotation = global_position.angle_to_point(punto_gancho) + deg_to_rad(180)
+	
+	if distancia > DISTANCIA_FRENO_GANCHO + 5.0:
+		velocity = dir_al_bloque * VELOCIDAD_GANCHO
+	else:
+		velocity += get_gravity() * delta
+		var input_balanceo = Input.get_axis(\"izquierda\", \"derecha\")
+		velocity.x += input_balanceo * 900.0 * delta
+		
+		if input_balanceo > 0:
+			animacion.flip_h = false
+		elif input_balanceo < 0:
+			animacion.flip_h = true
+			
+		if input_balanceo == 0:
+			velocity.x = move_toward(velocity.x, 0, 300 * delta)
+			
+		var dir_desde_gancho = punto_gancho.direction_to(global_position)
+		global_position = punto_gancho + dir_desde_gancho * DISTANCIA_FRENO_GANCHO
+		
+		var tangente = Vector2(-dir_desde_gancho.y, dir_desde_gancho.x)
+		velocity = tangente * velocity.dot(tangente)
+	
+	if Input.is_action_just_pressed(\"saltar\"):
+		soltar_gancho()
+		velocity.y = _velocidad_salto
+		
+		var input_balanceo = Input.get_axis(\"izquierda\", \"derecha\")
+		if input_balanceo != 0:
+			velocity.x = input_balanceo * 600.0
+		else:
+			velocity.x = velocity.x * 1.5
+		jump_count = 1
+		
+	move_and_slide()
+
+func procesar_doble_toque(delta):
+	if tiempo_doble_toque > 0:
+		tiempo_doble_toque -= delta
+
+	if esta_corriendo:
+		cooldown_correr -= delta
+		if cooldown_correr <= 0:
+			esta_corriendo = false
+		
+	if Input.is_action_just_pressed(\"derecha\"):
+		if tiempo_doble_toque > 0 and ultima_direccion == 1:
+			esta_corriendo = true
+			cooldown_correr = TIEMPO_COOLDOWN_CORRER
+		else:
+			tiempo_doble_toque = TIEMPO_MAX_DOBLE_TOQUE
+			ultima_direccion = 1
+
+	if Input.is_action_just_pressed(\"izquierda\"):
+		if tiempo_doble_toque > 0 and ultima_direccion == -1:
+			esta_corriendo = true
+			cooldown_correr = TIEMPO_COOLDOWN_CORRER
+		else:
+			tiempo_doble_toque = TIEMPO_MAX_DOBLE_TOQUE
+			ultima_direccion = -1
+
+func procesar_gravedad(delta):
+	var esta_en_pared_pegajosa = revisa_pared_pegajosa()
+	
+	if not is_on_floor():
+		if esta_en_pared_pegajosa and velocity.y > 0 and not esta_herido:
+			velocity.y = VELOCIDAD_TREPADO_MAXIMA
+			jump_count = 0
+		else:
+			velocity += get_gravity() * delta
+	else:
+		jump_count = 0
+
+func procesar_salto():
+	if Input.is_action_just_pressed(\"saltar\") and jump_count < max_jumps:
+		velocity.y = _velocidad_salto
+		jump_count += 1
+		animacion.play(\"saltar\")
+		animacion.frame = 0
+
+func procesar_caminar():
+	if esta_herido:
+		return
+		
+	var velocidad_actual = _velocidad_correr if esta_corriendo else _velocidad_caminar
+	if Input.is_action_pressed(\"derecha\"):
+		animacion.flip_h = false
+		velocity.x = velocidad_actual
+		raycast_agarrarse.target_position.x = abs(raycast_agarrarse.target_position.x)
+	elif Input.is_action_pressed(\"izquierda\"):
+		velocity.x = -velocidad_actual
+		animacion.flip_h = true
+		raycast_agarrarse.target_position.x = -abs(raycast_agarrarse.target_position.x)
+	else:
+		velocity.x = 0
+		esta_corriendo = false
+
+func procesar_animaciones():
+	if esta_herido or esta_atacando:
+		pass
+	elif not is_on_floor():
+		if animacion.animation != \"saltar\":
+			animacion.play(\"saltar\")
+	elif velocity.x != 0:
+		animacion.play(\"correr\")
+	else:
+		animacion.play(\"idle\")
+
+# Ataque
+func _process(delta):
+	if esta_atacando:
+		tiempo_ataque -= delta
+		if tiempo_ataque <= 0.0:
+			esta_atacando = false
+
+	if Input.is_action_just_pressed(\"Atacar\") and is_on_floor():
+		var total_frames = animacion.sprite_frames.get_frame_count(\"Atacar\")
+		var fps = max(animacion.sprite_frames.get_animation_speed(\"Atacar\"), 1.0)
+		
+		esta_atacando = true
+		tiempo_ataque = float(total_frames) / fps
+		ejecutar_ataque()
+		
+		if animacion.animation != \"Atacar\" or not animacion.is_playing() or animacion.frame >= total_frames - 1:
+			animacion.frame = 0
+			animacion.play(\"Atacar\")
+			
+	if tiempo_combo > 0:
+		tiempo_combo -= delta
+		if tiempo_combo <= 0:
+			daño_actual = ataque_base
+			frame_ataque = 0
+			print(\"Se acabó el tiempo. Daño reiniciado a: \", daño_actual)
+
+func ejecutar_ataque():
+	if tiempo_combo > 0.0:
+		daño_actual = min(daño_actual * 1.15, 20.0)
+	else:
+		daño_actual = ataque_base
+		
+	tiempo_combo = max(tiempo_ataque + 0.4, 1.0)
+	print(\"Daño de este golpe: \", daño_actual)
+
+# Interacción y utilidades
+func recibir_daño(cantidad: float, posicion_enemigo_x: float):
+	if esta_herido:
+		return
+		
+	esta_herido = true
+	animacion.modulate = Color.RED
+	salud_actual -= cantidad
+	actualizar_salud()
+	print(salud_actual)
+
+	velocity.y = -450
+	
+	if animacion.flip_h == true:
+		velocity.x = -250
+	else:
+		velocity.x = 250
+		
+	if salud_actual <= 0:
+		get_tree().call_deferred(\"reload_current_scene\")
+		
+	await get_tree().create_timer(0.3).timeout
+	esta_herido = false
+	velocity.x = 0
+	animacion.modulate = Color.WHITE
+
+func actualizar_salud():
+	if barra_salud:
+		barra_salud.actualizar_barra(salud_maxima, salud_actual)
+
+func revisa_pared_pegajosa() -> bool:
+	if raycast_agarrarse.is_colliding():
+		var objeto_chocado = raycast_agarrarse.get_collider()
+		if objeto_chocado and objeto_chocado.is_in_group(\"pegajoso\"):
+			return true
+	return false
+
+func _on_area_2d_body_entered(body: Node2D) -> void:
+	pass
+
+# Gancho (Mecánicas de TileMap)
+func lanzar_gancho_automatico() -> void:
+	if not mapa_tiles:
+		return
+
+	var celda_jugador = mapa_tiles.local_to_map(mapa_tiles.to_local(global_position))
+	var tamano_celda = mapa_tiles.tile_set.tile_size.x
+	var radio_celdas = int(ceil(RANGO_MAX_GANCHO / tamano_celda))
+
+	var menor_distancia: float = RANGO_MAX_GANCHO
+	var bloque_encontrado: bool = false
+	var posicion_objetivo: Vector2 = Vector2.ZERO
+
+	for x in range(celda_jugador.x - radio_celdas, celda_jugador.x + radio_celdas + 1):
+		for y in range(celda_jugador.y - radio_celdas, celda_jugador.y + radio_celdas + 1):
+			var celda = Vector2i(x, y)
+			var tile_data = mapa_tiles.get_cell_tile_data(celda)
+			
+			if tile_data and tile_data.get_custom_data(\"es_gancho\"):
+				var pos_bloque = mapa_tiles.to_global(mapa_tiles.map_to_local(celda)) + Vector2(0, 40)
+				var dist = global_position.distance_to(pos_bloque)
+				
+				if dist < menor_distancia:
+					menor_distancia = dist
+					posicion_objetivo = pos_bloque
+					bloque_encontrado = true
+
+	if bloque_encontrado:
+		punto_gancho = posicion_objetivo
+		usando_gancho = true
+		esta_corriendo = false
+		jump_count = 0
+		cuerda_gancho.visible = true
+		punta_gancho.visible = true
+
+func soltar_gancho() -> void:
+	usando_gancho = false
+	cuerda_gancho.visible = false
+	punta_gancho.visible = false
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_mqjca"]
+size = Vector2(38.5, 102)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_oc47h"]
+size = Vector2(37.5625, 101.46875)
+
+[node name="personaje" type="CharacterBody2D" unique_id=528897987 node_paths=PackedStringArray("area_2d") groups=["jugador"]]
+collision_layer = 4
+script = SubResource("GDScript_oc47h")
+area_2d = NodePath("Area2D")
+
+[node name="animacion" type="AnimatedSprite2D" parent="." unique_id=950030323]
+position = Vector2(-4.000005, -4.4999933)
+scale = Vector2(2.3749998, 2.234375)
+sprite_frames = ExtResource("1_oc47h")
+animation = &"Atacar"
+frame = 6
+frame_progress = 1.0
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=128117894]
+position = Vector2(1, -3)
+shape = SubResource("RectangleShape2D_mqjca")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=553963187]
+position = Vector2(-44, -33)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1801546937]
+position = Vector2(45, 30)
+shape = SubResource("RectangleShape2D_oc47h")
+
+[node name="RayCast2D" type="RayCast2D" parent="." unique_id=1590658468]
+position = Vector2(9, -45)
+target_position = Vector2(50, 0)
+collision_mask = 16
+
+[node name="CuerdaGancho" type="Line2D" parent="." unique_id=1696428210]
+texture_filter = 1
+texture_repeat = 2
+texture = ExtResource("2_xvnmu")
+texture_mode = 1
+
+[node name="PuntaGancho" type="Sprite2D" parent="." unique_id=832526164]
+texture_filter = 1
+texture = ExtResource("3_ma4sg")
+offset = Vector2(-24, -2)

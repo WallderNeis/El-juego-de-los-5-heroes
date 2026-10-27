@@ -1,0 +1,76 @@
+[gd_scene format=3 uid="uid://0kc8mr40uw1u"]
+
+[ext_resource type="Texture2D" uid="uid://ccsnw2lo3y2lo" path="res://Ecena/menu/Gemini_Generated_Image_qhcirqhcirqhcirq.png" id="1_2iain"]
+
+[sub_resource type="GDScript" id="GDScript_2iain"]
+script/source = "extends Control
+  
+func _on_jugar_pressed() -> void:
+	get_tree().change_scene_to_file(\"res://Ecena/nivel_1/nive_1.tscn\")
+  
+  
+func _on_opciones_pressed() -> void:
+	get_tree().change_scene_to_file(\"res://Ecena/menu/Opcione.tscn\")
+	
+	
+func _on_salir_pressed() -> void:
+	get_tree().quit()
+"
+
+[node name="Menu" type="Control" unique_id=1086705647]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = SubResource("GDScript_2iain")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=515153504]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.27314225, 0.27314225, 0.27314222, 1)
+
+[node name="GeminiGeneratedImageQhcirqhcirqhcirq2" type="Sprite2D" parent="ColorRect" unique_id=1440999746]
+position = Vector2(577.99994, 322.50006)
+scale = Vector2(0.40909088, 0.47020355)
+texture = ExtResource("1_2iain")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ColorRect" unique_id=946586825]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -203.0
+offset_top = -164.0
+offset_right = 203.0
+offset_bottom = 164.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 23
+
+[node name="jugar" type="Button" parent="ColorRect/VBoxContainer" unique_id=203349930]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Jugar"
+
+[node name="opciones" type="Button" parent="ColorRect/VBoxContainer" unique_id=489784363]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Opciones"
+
+[node name="salir" type="Button" parent="ColorRect/VBoxContainer" unique_id=846322134]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Salir"
+
+[connection signal="pressed" from="ColorRect/VBoxContainer/jugar" to="." method="_on_jugar_pressed"]
+[connection signal="pressed" from="ColorRect/VBoxContainer/opciones" to="." method="_on_opciones_pressed"]
+[connection signal="pressed" from="ColorRect/VBoxContainer/salir" to="." method="_on_salir_pressed"]

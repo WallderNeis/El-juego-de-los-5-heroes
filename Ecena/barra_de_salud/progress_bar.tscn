@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://d85otpi3ytjx"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rwmbs"]
+bg_color = Color(0.1288298, 0.1288298, 0.12882972, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ffwhw"]
+bg_color = Color(0.33155572, 0.62146115, 0.113565825, 1)
+
+[sub_resource type="GDScript" id="GDScript_rwmbs"]
+script/source = "extends ProgressBar
+
+
+func actualizar_barra(maximo: float, actual: float):
+	self.max_value = maximo
+	self.value = actual
+"
+
+[node name="barra_salud" type="ProgressBar" unique_id=1510134775]
+offset_right = 268.0
+offset_bottom = 45.0
+theme_override_styles/background = SubResource("StyleBoxFlat_rwmbs")
+theme_override_styles/fill = SubResource("StyleBoxFlat_ffwhw")
+max_value = 1.0
+value = 1.0
+show_percentage = false
+script = SubResource("GDScript_rwmbs")

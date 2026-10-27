@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://beq23fmq5mtoa"]
+
+[ext_resource type="Texture2D" uid="uid://dlqfuj2vgxdqg" path="res://Ecena/menu/p6BXs.jpg" id="1_v4ja5"]
+
+[sub_resource type="GDScript" id="GDScript_0fuvp"]
+resource_name = "tercer_menus"
+script/source = "extends Control
+
+
+func _on_atras_pressed():
+	get_tree().change_scene_to_file(\"res://Ecena/menu/opcione.tscn\")
+"
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_0fuvp"]
+color = Color(1, 1, 1, 1)
+thickness = 6
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_unft8"]
+color = Color(0, 0.3764706, 0.7921569, 1)
+thickness = 6
+
+[node name="volumen" type="Control" unique_id=1086705647]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = SubResource("GDScript_0fuvp")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=515153504]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.27314225, 0.27314225, 0.27314222, 1)
+
+[node name="P6bXs" type="Sprite2D" parent="ColorRect" unique_id=849941732]
+position = Vector2(579.50006, 323.5)
+scale = Vector2(0.89274687, 0.80875003)
+texture = ExtResource("1_v4ja5")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ColorRect" unique_id=946586825]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.693
+anchor_right = 0.5
+anchor_bottom = 0.693
+offset_left = -203.0
+offset_top = -105.064026
+offset_right = 203.0
+offset_bottom = 38.935974
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 200
+
+[node name="atras" type="Button" parent="ColorRect/VBoxContainer" unique_id=846322134]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Atras"
+
+[node name="control de audio" type="HSlider" parent="." unique_id=163846073]
+layout_mode = 0
+offset_left = 380.0
+offset_top = 244.0
+offset_right = 775.0
+offset_bottom = 293.0
+theme_override_styles/slider = SubResource("StyleBoxLine_0fuvp")
+theme_override_styles/grabber_area = SubResource("StyleBoxLine_unft8")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxLine_unft8")
+value = 50.0
+
+[connection signal="pressed" from="ColorRect/VBoxContainer/atras" to="." method="_on_atras_pressed"]
+[connection signal="pressed" from="ColorRect/VBoxContainer/atras" to="." method="_on_salir_pressed"]

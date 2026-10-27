@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://b8daflpfp5tgg"]
+
+[ext_resource type="Texture2D" uid="uid://dlqfuj2vgxdqg" path="res://Ecena/menu/p6BXs.jpg" id="1_w7l0v"]
+
+[sub_resource type="GDScript" id="GDScript_w7l0v"]
+script/source = "extends Control
+
+func _on_atras_pressed() -> void:
+	get_tree().change_scene_to_file(\"res://Ecena/menu/menu.tscn\")
+
+
+func _on_volumen_pressed() -> void:
+	get_tree().change_scene_to_file(\"res://Ecena/menu/volumen.tscn\")
+
+
+func _on_button_pressed() -> void:
+	pass # Replace with function body.
+"
+
+[node name="opciones" type="Control" unique_id=1086705647]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = SubResource("GDScript_w7l0v")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=515153504]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.27314225, 0.27314225, 0.27314222, 1)
+
+[node name="P6bXs" type="Sprite2D" parent="ColorRect" unique_id=849941732]
+position = Vector2(579.50006, 323.5)
+scale = Vector2(0.89274687, 0.80875003)
+texture = ExtResource("1_w7l0v")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ColorRect" unique_id=946586825]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -203.0
+offset_top = -164.0
+offset_right = 203.0
+offset_bottom = 164.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 23
+
+[node name="volumen" type="Button" parent="ColorRect/VBoxContainer" unique_id=203349930]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Volumen"
+
+[node name="resolucion" type="Button" parent="ColorRect/VBoxContainer" unique_id=489784363]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Resolucion"
+
+[node name="atras" type="Button" parent="ColorRect/VBoxContainer" unique_id=846322134]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Atras"
+
+[connection signal="pressed" from="ColorRect/VBoxContainer/volumen" to="." method="_on_jugar_pressed"]
+[connection signal="pressed" from="ColorRect/VBoxContainer/volumen" to="." method="_on_volumen_pressed"]
+[connection signal="pressed" from="ColorRect/VBoxContainer/resolucion" to="." method="_on_opciones_pressed"]
+[connection signal="pressed" from="ColorRect/VBoxContainer/atras" to="." method="_on_salir_pressed"]
+[connection signal="pressed" from="ColorRect/VBoxContainer/atras" to="." method="_on_atras_pressed"]
