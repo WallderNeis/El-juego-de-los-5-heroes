@@ -26,7 +26,7 @@ var ultima_direccion: int = 0
 var cooldown_correr: float = 0.0
 var jump_count = 0
 const TIEMPO_MAX_DOBLE_TOQUE: float = 0.25
-const TIEMPO_COOLDOWN_CORRER: float = 5.0
+const TIEMPO_COOLDOWN_CORRER: float = 2.0
 const VELOCIDAD_TREPADO_MAXIMA = 0.0
 const max_jumps = 2
 
@@ -52,6 +52,7 @@ var frame_ataque: int = 0
 var tiempo_combo: float = 0.0
 var ataque_base = 5.0
 var daño_actual = ataque_base
+const TIEMPO_REINICIO_ATAQUE: float = 0.2
 
 # Gancho
 var usando_gancho: bool = false
@@ -72,6 +73,10 @@ func _ready():
 
 # Físicas y movimiento
 func _physics_process(delta):
+	# El temporizador de correr se procesa siempre,
+	# incluso mientras se usa el gancho
+	procesar_doble_toque(delta)
+
 	if Input.is_action_just_pressed(\"gancho\") and not esta_herido:
 		if usando_gancho:
 			soltar_gancho()
@@ -82,7 +87,6 @@ func _physics_process(delta):
 		procesar_gancho(delta)
 		return
 
-	procesar_doble_toque(delta)
 	procesar_gravedad(delta)
 	procesar_salto()
 	procesar_caminar()
@@ -139,26 +143,35 @@ func procesar_doble_toque(delta):
 	if tiempo_doble_toque > 0:
 		tiempo_doble_toque -= delta
 
-	if esta_corriendo:
+	# El temporizador se descuenta siempre que esté activo,
+	# sin depender de esta_corriendo
+	if cooldown_correr > 0:
 		cooldown_correr -= delta
 		if cooldown_correr <= 0:
+			cooldown_correr = 0.0
 			esta_corriendo = false
 		
 	if Input.is_action_just_pressed(\"derecha\"):
 		if tiempo_doble_toque > 0 and ultima_direccion == 1:
-			esta_corriendo = true
-			cooldown_correr = TIEMPO_COOLDOWN_CORRER
+			activar_correr()
 		else:
 			tiempo_doble_toque = TIEMPO_MAX_DOBLE_TOQUE
 			ultima_direccion = 1
 
 	if Input.is_action_just_pressed(\"izquierda\"):
 		if tiempo_doble_toque > 0 and ultima_direccion == -1:
-			esta_corriendo = true
-			cooldown_correr = TIEMPO_COOLDOWN_CORRER
+			activar_correr()
 		else:
 			tiempo_doble_toque = TIEMPO_MAX_DOBLE_TOQUE
 			ultima_direccion = -1
+
+func activar_correr():
+	esta_corriendo = true
+	cooldown_correr = TIEMPO_COOLDOWN_CORRER
+
+func detener_correr():
+	esta_corriendo = false
+	cooldown_correr = 0.0
 
 func procesar_gravedad(delta):
 	var esta_en_pared_pegajosa = revisa_pared_pegajosa()
@@ -194,7 +207,8 @@ func procesar_caminar():
 		raycast_agarrarse.target_position.x = -abs(raycast_agarrarse.target_position.x)
 	else:
 		velocity.x = 0
-		esta_corriendo = false
+		# Al soltar la tecla también se cancela el temporizador
+		detener_correr()
 
 func procesar_animaciones():
 	if esta_herido or esta_atacando:
@@ -207,24 +221,33 @@ func procesar_animaciones():
 	else:
 		animacion.play(\"idle\")
 
-# Ataque
+# Ataque: cada toque avanza un frame de la animación.
+# Si dejas de tocar (aunque sea a mitad de la animación o con un solo toque),
+# la animación se quita rápido y se reinicia.
 func _process(delta):
 	if esta_atacando:
 		tiempo_ataque -= delta
 		if tiempo_ataque <= 0.0:
-			esta_atacando = false
+			reiniciar_ataque()
 
-	if Input.is_action_just_pressed(\"Atacar\") and is_on_floor():
+	if Input.is_action_just_pressed(\"Atacar\") and is_on_floor() and not esta_herido:
 		var total_frames = animacion.sprite_frames.get_frame_count(\"Atacar\")
-		var fps = max(animacion.sprite_frames.get_animation_speed(\"Atacar\"), 1.0)
 		
-		esta_atacando = true
-		tiempo_ataque = float(total_frames) / fps
-		ejecutar_ataque()
-		
-		if animacion.animation != \"Atacar\" or not animacion.is_playing() or animacion.frame >= total_frames - 1:
+		if not esta_atacando:
+			# Primer toque: arranca desde el frame 0
+			esta_atacando = true
+			animacion.animation = \"Atacar\"
+			animacion.pause()
 			animacion.frame = 0
-			animacion.play(\"Atacar\")
+		else:
+			# Toques siguientes: avanza un frame (vuelve al 0 al llegar al final)
+			animacion.animation = \"Atacar\"
+			animacion.pause()
+			animacion.frame = (animacion.frame + 1) % total_frames
+		
+		# Cada toque reinicia el tiempo de espera
+		tiempo_ataque = TIEMPO_REINICIO_ATAQUE
+		ejecutar_ataque()
 			
 	if tiempo_combo > 0:
 		tiempo_combo -= delta
@@ -232,6 +255,11 @@ func _process(delta):
 			daño_actual = ataque_base
 			frame_ataque = 0
 			print(\"Se acabó el tiempo. Daño reiniciado a: \", daño_actual)
+
+func reiniciar_ataque():
+	esta_atacando = false
+	tiempo_ataque = 0.0
+	animacion.frame = 0
 
 func ejecutar_ataque():
 	if tiempo_combo > 0.0:
@@ -248,6 +276,7 @@ func recibir_daño(cantidad: float, posicion_enemigo_x: float):
 		return
 		
 	esta_herido = true
+	reiniciar_ataque()
 	animacion.modulate = Color.RED
 	salud_actual -= cantidad
 	actualizar_salud()
@@ -312,7 +341,8 @@ func lanzar_gancho_automatico() -> void:
 	if bloque_encontrado:
 		punto_gancho = posicion_objetivo
 		usando_gancho = true
-		esta_corriendo = false
+		detener_correr()
+		reiniciar_ataque()
 		jump_count = 0
 		cuerda_gancho.visible = true
 		punta_gancho.visible = true
