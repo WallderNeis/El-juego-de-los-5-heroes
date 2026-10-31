@@ -12,6 +12,7 @@ script/source = "extends CharacterBody2D
 @onready var raycast_agarrarse = $RayCast2D
 @onready var cuerda_gancho: Line2D = $CuerdaGancho
 @onready var punta_gancho: Sprite2D = $PuntaGancho
+@onready var forma_colision: CollisionShape2D = _buscar_forma_colision()
 @export var area_2d: Area2D
 @export var mapa_tiles: TileMapLayer
 @export var barra_salud: ProgressBar
@@ -31,14 +32,24 @@ const VELOCIDAD_TREPADO_MAXIMA = 0.0
 const max_jumps = 2
 
 # Dash e invulnerabilidad
-var velocida_dash: float = 400.0
+var esta_dasheando: bool = false
 var tiempo_dash: float = 0.2
+var tiempo_dash_restante: float = 0.0
+var velocida_dash: float = 900.0
 var direccion_dash: float = 0.0
 var es_invulnerable: bool = false
-var tiempo_invulnerable: float = 0.5
+var tiempo_invulnerable: float = 0.3
+var tiempo_invulnerable_restante: float = 0.0
 var segmentos_actuales: float = 5.0
 var segmentos_maximos: float = 5.0
 var costo_por_dash: float = 1.0
+const RECARGA_SEGMENTOS_POR_SEGUNDO: float = 0.5
+
+# Atravesar enemigos durante el dash
+var atravesando_enemigos: bool = false
+const CAPA_JUGADOR: int = 3
+const CAPA_JUGADOR_DASH: int = 8
+const CAPA_ENEMIGOS: int = 7
 
 # Salud y daño
 var salud_actual: float = 100.0
@@ -57,7 +68,7 @@ const TIEMPO_REINICIO_ATAQUE: float = 0.2
 # Gancho
 var usando_gancho: bool = false
 var punto_gancho: Vector2 = Vector2.ZERO
-var longitud_cuerda_actual: float = 160.0 # NUEVA VARIABLE
+var longitud_cuerda_actual: float = 160.0
 const RANGO_MAX_GANCHO: float = 260.0
 const VELOCIDAD_GANCHO: float = 750.0
 const DISTANCIA_FRENO_GANCHO: float = 160.0
@@ -72,11 +83,19 @@ func _ready():
 	punta_gancho.z_index = 1
 	cuerda_gancho.z_index = 0
 
+func _buscar_forma_colision() -> CollisionShape2D:
+	for hijo in get_children():
+		if hijo is CollisionShape2D:
+			return hijo as CollisionShape2D
+	return null
+
 # Físicas y movimiento
 func _physics_process(delta):
-	# El temporizador de correr se procesa siempre,
+	# Estos procesos se ejecutan siempre,
 	# incluso mientras se usa el gancho
 	procesar_doble_toque(delta)
+	recargar_dash(delta)
+	actualizar_atravesar()
 
 	if Input.is_action_just_pressed(\"gancho\") and not esta_herido:
 		if usando_gancho:
@@ -86,6 +105,13 @@ func _physics_process(delta):
 
 	if usando_gancho:
 		procesar_gancho(delta)
+		return
+
+	if Input.is_action_just_pressed(\"dash\") and puede_dash():
+		iniciar_dash()
+
+	if esta_dasheando:
+		procesar_dash(delta)
 		return
 
 	procesar_gravedad(delta)
@@ -106,7 +132,6 @@ func procesar_gancho(delta):
 	punta_gancho.global_position = punto_gancho
 	punta_gancho.rotation = global_position.angle_to_point(punto_gancho) + deg_to_rad(180)
 	
-	# REEMPLAZO AQUÍ: usar longitud_cuerda_actual en vez de DISTANCIA_FRENO_GANCHO
 	if distancia > longitud_cuerda_actual + 5.0:
 		velocity = dir_al_bloque * VELOCIDAD_GANCHO
 	else:
@@ -124,7 +149,7 @@ func procesar_gancho(delta):
 			
 		var dir_desde_gancho = punto_gancho.direction_to(global_position)
 		
-		# REEMPLAZO AQUÍ: usar longitud_cuerda_actual para evitar el teletransporte brusco
+		# Usar longitud_cuerda_actual para evitar el teletransporte brusco
 		global_position = punto_gancho + dir_desde_gancho * longitud_cuerda_actual
 		
 		var tangente = Vector2(-dir_desde_gancho.y, dir_desde_gancho.x)
@@ -177,6 +202,91 @@ func detener_correr():
 	esta_corriendo = false
 	cooldown_correr = 0.0
 
+# Dash
+func puede_dash() -> bool:
+	return segmentos_actuales >= costo_por_dash and not esta_herido and not esta_dasheando
+
+func iniciar_dash():
+	segmentos_actuales -= costo_por_dash
+	esta_dasheando = true
+	tiempo_dash_restante = tiempo_dash
+	
+	# Invulnerabilidad durante el dash
+	es_invulnerable = true
+	tiempo_invulnerable_restante = tiempo_invulnerable
+	
+	# Dirección: la del input; si no hay, hacia donde mira el personaje
+	var input_dir = Input.get_axis(\"izquierda\", \"derecha\")
+	if input_dir != 0:
+		direccion_dash = sign(input_dir)
+	else:
+		direccion_dash = -1.0 if animacion.flip_h else 1.0
+	animacion.flip_h = direccion_dash < 0
+	
+	# El dash cancela el ataque en curso
+	reiniciar_ataque()
+	
+	# Esquivar no debe romper el combo: se renueva su tiempo si estaba activo
+	if tiempo_combo > 0:
+		tiempo_combo = max(tiempo_combo, 1.0)
+	
+	# Atraviesa a los enemigos mientras dura el dash
+	activar_atravesar()
+	
+	if animacion.sprite_frames.has_animation(\"dash\"):
+		animacion.play(\"dash\")
+
+func procesar_dash(delta):
+	velocity.x = direccion_dash * velocida_dash
+	velocity.y = 0
+	move_and_slide()
+	
+	tiempo_dash_restante -= delta
+	if tiempo_dash_restante <= 0:
+		esta_dasheando = false
+		velocity.x = 0
+
+func recargar_dash(delta):
+	# Los segmentos solo se recargan mientras estás en el suelo
+	if is_on_floor() and segmentos_actuales < segmentos_maximos:
+		segmentos_actuales = min(segmentos_actuales + RECARGA_SEGMENTOS_POR_SEGUNDO * delta, segmentos_maximos)
+	
+	# Temporizador de invulnerabilidad
+	if es_invulnerable:
+		tiempo_invulnerable_restante -= delta
+		if tiempo_invulnerable_restante <= 0:
+			es_invulnerable = false
+
+# Atravesar enemigos: durante el dash el personaje pasa a la capa JugadorDash
+# y deja de escanear la capa de enemigos. Así ni él los empuja ni ellos a él.
+func activar_atravesar():
+	atravesando_enemigos = true
+	set_collision_layer_value(CAPA_JUGADOR, false)
+	set_collision_layer_value(CAPA_JUGADOR_DASH, true)
+	set_collision_mask_value(CAPA_ENEMIGOS, false)
+
+func restaurar_colision():
+	atravesando_enemigos = false
+	set_collision_layer_value(CAPA_JUGADOR_DASH, false)
+	set_collision_layer_value(CAPA_JUGADOR, true)
+	set_collision_mask_value(CAPA_ENEMIGOS, true)
+
+func actualizar_atravesar():
+	# Tras el dash, la colisión solo se devuelve cuando no hay un enemigo
+	# encima, para que nadie salga disparado al solaparse
+	if atravesando_enemigos and not esta_dasheando and not hay_enemigo_encima():
+		restaurar_colision()
+
+func hay_enemigo_encima() -> bool:
+	if forma_colision == null:
+		return false
+	var consulta = PhysicsShapeQueryParameters2D.new()
+	consulta.shape = forma_colision.shape
+	consulta.transform = forma_colision.global_transform
+	consulta.collision_mask = 1 << (CAPA_ENEMIGOS - 1)
+	var resultado = get_world_2d().direct_space_state.intersect_shape(consulta, 1)
+	return not resultado.is_empty()
+
 func procesar_gravedad(delta):
 	var esta_en_pared_pegajosa = revisa_pared_pegajosa()
 	
@@ -215,7 +325,7 @@ func procesar_caminar():
 		detener_correr()
 
 func procesar_animaciones():
-	if esta_herido or esta_atacando:
+	if esta_herido or esta_atacando or esta_dasheando:
 		pass
 	elif not is_on_floor():
 		if animacion.animation != \"saltar\":
@@ -234,7 +344,7 @@ func _process(delta):
 		if tiempo_ataque <= 0.0:
 			reiniciar_ataque()
 
-	if Input.is_action_just_pressed(\"Atacar\") and is_on_floor() and not esta_herido:
+	if Input.is_action_just_pressed(\"Atacar\") and is_on_floor() and not esta_herido and not esta_dasheando:
 		var total_frames = animacion.sprite_frames.get_frame_count(\"Atacar\")
 		
 		if not esta_atacando:
@@ -276,10 +386,14 @@ func ejecutar_ataque():
 
 # Interacción y utilidades
 func recibir_daño(cantidad: float, posicion_enemigo_x: float):
+	# El dash esquiva el daño
+	if es_invulnerable:
+		return
 	if esta_herido:
 		return
 		
 	esta_herido = true
+	esta_dasheando = false
 	reiniciar_ataque()
 	animacion.modulate = Color.RED
 	salud_actual -= cantidad
@@ -345,8 +459,9 @@ func lanzar_gancho_automatico() -> void:
 	if bloque_encontrado:
 		punto_gancho = posicion_objetivo
 		usando_gancho = true
+		esta_dasheando = false
 		
-		# NUEVO: Guardar la distancia real al momento de engancharse para no forzar la cámara
+		# Guardar la distancia real al momento de engancharse para no forzar la cámara
 		var distancia_inicial = global_position.distance_to(punto_gancho)
 		longitud_cuerda_actual = min(distancia_inicial, DISTANCIA_FRENO_GANCHO)
 		
@@ -370,6 +485,7 @@ size = Vector2(37.5625, 101.46875)
 
 [node name="personaje" type="CharacterBody2D" unique_id=528897987 node_paths=PackedStringArray("area_2d") groups=["jugador"]]
 collision_layer = 4
+collision_mask = 17
 script = SubResource("GDScript_oc47h")
 area_2d = NodePath("Area2D")
 
@@ -377,9 +493,7 @@ area_2d = NodePath("Area2D")
 position = Vector2(-4.000005, -4.4999933)
 scale = Vector2(2.3749998, 2.234375)
 sprite_frames = ExtResource("1_oc47h")
-animation = &"Atacar"
-frame = 6
-frame_progress = 1.0
+animation = &"correr"
 flip_h = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=128117894]

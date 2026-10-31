@@ -25,6 +25,7 @@ var tiempo_exploracion: float = 0.0
 @onready var animacion = $animacion
 @onready var vision = $RayCast2D 
 
+
 func _physics_process(delta):
 	
 	# 1. Buscar al jugador en el mapa si aún no lo tenemos
@@ -93,7 +94,11 @@ func _physics_process(delta):
 
 	# 4. Mover al enemigo físicamente
 	move_and_slide()
-	
+		
+	for i in get_slide_collision_count():
+		var otro = get_slide_collision(i).get_collider()
+		if otro and otro.name == \"personaje\":
+			print(\"¡El enemigo está chocando con el personaje!\")
 	# 5. Control de animaciones (Mejorado)
 	if atacando:
 		if animacion.animation != \"atacar\":
@@ -228,7 +233,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_7lugh")
 }],
-"loop": false,
+"loop": 0,
 "name": &"atacar",
 "speed": 10.0
 }, {
@@ -245,7 +250,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_1sdwo")
 }],
-"loop": true,
+"loop": 1,
 "name": &"caminar",
 "speed": 5.0
 }, {
@@ -262,7 +267,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_236ty")
 }],
-"loop": true,
+"loop": 1,
 "name": &"correr",
 "speed": 7.0
 }, {
@@ -270,7 +275,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_rft6a")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 5.0
 }, {
@@ -290,7 +295,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_gr06g")
 }],
-"loop": true,
+"loop": 1,
 "name": &"salto",
 "speed": 10.0
 }]
@@ -302,8 +307,7 @@ size = Vector2(28, 37.5)
 size = Vector2(33, 42)
 
 [node name="enemigo" type="CharacterBody2D" unique_id=154293742]
-collision_layer = 2
-collision_mask = 5
+collision_layer = 64
 script = SubResource("GDScript_2mv2k")
 
 [node name="animacion" type="AnimatedSprite2D" parent="." unique_id=332000774]
@@ -318,6 +322,7 @@ shape = SubResource("RectangleShape2D_rft6a")
 
 [node name="zona_daño" type="Area2D" parent="CollisionShape2D" unique_id=858198432]
 collision_layer = 0
+collision_mask = 132
 
 [node name="CollisionShape2D2" type="CollisionShape2D" parent="CollisionShape2D/zona_daño" unique_id=917989188]
 position = Vector2(0, -0.25)
@@ -325,6 +330,7 @@ shape = SubResource("RectangleShape2D_hw7s3")
 
 [node name="RayCast2D" type="RayCast2D" parent="." unique_id=1796077262]
 position = Vector2(0, 10)
+collision_mask = 133
 
 [connection signal="animation_finished" from="animacion" to="." method="_on_animacion_animation_finished"]
 [connection signal="frame_changed" from="animacion" to="." method="_on_animacion_frame_changed"]

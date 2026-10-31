@@ -67,6 +67,8 @@ func _on_body_entered(body: Node2D) -> void:
 	if body.name == \"personaje\":
 		body.recibir_daño(15.0, global_position.x)
 		
+
+		
 "
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_3555g"]
