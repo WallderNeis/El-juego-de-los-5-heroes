@@ -57,9 +57,10 @@ const TIEMPO_REINICIO_ATAQUE: float = 0.2
 # Gancho
 var usando_gancho: bool = false
 var punto_gancho: Vector2 = Vector2.ZERO
-const RANGO_MAX_GANCHO: float = 280.0
+var longitud_cuerda_actual: float = 160.0 # NUEVA VARIABLE
+const RANGO_MAX_GANCHO: float = 260.0
 const VELOCIDAD_GANCHO: float = 750.0
-const DISTANCIA_FRENO_GANCHO: float = 180.0
+const DISTANCIA_FRENO_GANCHO: float = 160.0
 
 
 # Inicialización
@@ -105,7 +106,8 @@ func procesar_gancho(delta):
 	punta_gancho.global_position = punto_gancho
 	punta_gancho.rotation = global_position.angle_to_point(punto_gancho) + deg_to_rad(180)
 	
-	if distancia > DISTANCIA_FRENO_GANCHO + 5.0:
+	# REEMPLAZO AQUÍ: usar longitud_cuerda_actual en vez de DISTANCIA_FRENO_GANCHO
+	if distancia > longitud_cuerda_actual + 5.0:
 		velocity = dir_al_bloque * VELOCIDAD_GANCHO
 	else:
 		velocity += get_gravity() * delta
@@ -121,7 +123,9 @@ func procesar_gancho(delta):
 			velocity.x = move_toward(velocity.x, 0, 300 * delta)
 			
 		var dir_desde_gancho = punto_gancho.direction_to(global_position)
-		global_position = punto_gancho + dir_desde_gancho * DISTANCIA_FRENO_GANCHO
+		
+		# REEMPLAZO AQUÍ: usar longitud_cuerda_actual para evitar el teletransporte brusco
+		global_position = punto_gancho + dir_desde_gancho * longitud_cuerda_actual
 		
 		var tangente = Vector2(-dir_desde_gancho.y, dir_desde_gancho.x)
 		velocity = tangente * velocity.dot(tangente)
@@ -341,6 +345,11 @@ func lanzar_gancho_automatico() -> void:
 	if bloque_encontrado:
 		punto_gancho = posicion_objetivo
 		usando_gancho = true
+		
+		# NUEVO: Guardar la distancia real al momento de engancharse para no forzar la cámara
+		var distancia_inicial = global_position.distance_to(punto_gancho)
+		longitud_cuerda_actual = min(distancia_inicial, DISTANCIA_FRENO_GANCHO)
+		
 		detener_correr()
 		reiniciar_ataque()
 		jump_count = 0
