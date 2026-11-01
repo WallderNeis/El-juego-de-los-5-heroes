@@ -77,6 +77,7 @@ size = Vector2(61.62509, 25.19646)
 [node name="TrampaHueco" type="Node2D" unique_id=1114512114]
 
 [node name="DetectorHueco" type="Area2D" parent="." unique_id=996895522]
+collision_mask = 5
 script = SubResource("GDScript_xvy22")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DetectorHueco" unique_id=494961764]

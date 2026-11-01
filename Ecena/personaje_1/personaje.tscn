@@ -56,6 +56,18 @@ var salud_actual: float = 100.0
 var salud_maxima: float = 100.0
 var esta_herido: bool = false
 
+# Hundimiento (zonas de daño tipo arenas movedizas o ácido)
+var tiempo_hundimiento: float = 0.0
+var cooldown_daño_hundimiento: float = 0.0
+var tiempo_total_hundido: float = 0.0
+const VELOCIDAD_HUNDIMIENTO: float = 60.0      # velocidad máxima de caída dentro de la zona
+const VELOCIDAD_NADAR: float = 140.0           # velocidad al subir manteniendo saltar
+const FACTOR_VELOCIDAD_HUNDIDO: float = 0.4    # multiplicador de velocidad al caminar
+const FACTOR_SALTO_HUNDIDO: float = 0.6        # multiplicador de la fuerza de salto
+const INTERVALO_DAÑO_HUNDIMIENTO: float = 0.5  # segundos entre cada golpe de daño
+const DURACION_RAMPA_DAÑO: float = 4.0         # segundos hasta llegar al daño máximo
+const DAÑO_MINIMO_FACTOR: float = 0.4          # fracción del daño máximo al entrar
+
 # Ataque y combo
 var esta_atacando: bool = false
 var tiempo_ataque: float = 0.0
@@ -96,6 +108,7 @@ func _physics_process(delta):
 	procesar_doble_toque(delta)
 	recargar_dash(delta)
 	actualizar_atravesar()
+	procesar_hundimiento(delta)
 
 	if Input.is_action_just_pressed(\"gancho\") and not esta_herido:
 		if usando_gancho:
@@ -287,6 +300,43 @@ func hay_enemigo_encima() -> bool:
 	var resultado = get_world_2d().direct_space_state.intersect_shape(consulta, 1)
 	return not resultado.is_empty()
 
+# Hundimiento
+func procesar_hundimiento(delta):
+	if tiempo_hundimiento > 0.0:
+		tiempo_hundimiento -= delta
+		tiempo_total_hundido += delta
+	else:
+		tiempo_total_hundido = 0.0
+	if cooldown_daño_hundimiento > 0.0:
+		cooldown_daño_hundimiento -= delta
+
+func hundirse(cantidad_daño: float):
+	# La zona de daño lo llama en cada frame mientras el personaje está dentro.
+	# Lo hunde y le hace daño cada cierto intervalo, sin rebote ni aturdimiento.
+	tiempo_hundimiento = 0.1
+	
+	if es_invulnerable or cooldown_daño_hundimiento > 0.0:
+		return
+	cooldown_daño_hundimiento = INTERVALO_DAÑO_HUNDIMIENTO
+	
+	# El daño crece cuanto más tiempo llevas dentro
+	var progreso: float = clampf(tiempo_total_hundido / DURACION_RAMPA_DAÑO, 0.0, 1.0)
+	var daño_final: float = lerpf(cantidad_daño * DAÑO_MINIMO_FACTOR, cantidad_daño, progreso)
+	
+	salud_actual -= daño_final
+	actualizar_salud()
+	print(salud_actual)
+	
+	if salud_actual <= 0:
+		get_tree().call_deferred(\"reload_current_scene\")
+		return
+	
+	# Parpadeo rojo corto como aviso de daño
+	animacion.modulate = Color.RED
+	await get_tree().create_timer(0.15).timeout
+	if not esta_herido:
+		animacion.modulate = Color.WHITE
+
 func procesar_gravedad(delta):
 	var esta_en_pared_pegajosa = revisa_pared_pegajosa()
 	
@@ -298,10 +348,21 @@ func procesar_gravedad(delta):
 			velocity += get_gravity() * delta
 	else:
 		jump_count = 0
+	
+	# Hundiéndose: caes lento y, si mantienes saltar, nadas hacia arriba
+	if tiempo_hundimiento > 0.0:
+		jump_count = 0
+		if Input.is_action_pressed(\"saltar\"):
+			velocity.y = move_toward(velocity.y, -VELOCIDAD_NADAR, 1500.0 * delta)
+		else:
+			velocity.y = min(velocity.y, VELOCIDAD_HUNDIMIENTO)
 
 func procesar_salto():
 	if Input.is_action_just_pressed(\"saltar\") and jump_count < max_jumps:
-		velocity.y = _velocidad_salto
+		var fuerza_salto = _velocidad_salto
+		if tiempo_hundimiento > 0.0:
+			fuerza_salto *= FACTOR_SALTO_HUNDIDO
+		velocity.y = fuerza_salto
 		jump_count += 1
 		animacion.play(\"saltar\")
 		animacion.frame = 0
@@ -311,6 +372,9 @@ func procesar_caminar():
 		return
 		
 	var velocidad_actual = _velocidad_correr if esta_corriendo else _velocidad_caminar
+	if tiempo_hundimiento > 0.0:
+		velocidad_actual *= FACTOR_VELOCIDAD_HUNDIDO
+	
 	if Input.is_action_pressed(\"derecha\"):
 		animacion.flip_h = false
 		velocity.x = velocidad_actual
